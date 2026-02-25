@@ -17,8 +17,11 @@ import seaborn as sns
 import streamlit as st
 import matplotlib.pyplot as plt
 
+from ui_common import show_gpu_sidebar
+
 st.set_page_config(page_title="Benchmark", page_icon="📊", layout="wide")
-st.title("📊 Benchmark")
+show_gpu_sidebar()
+st.title("Benchmark")
 st.markdown("Run a model against a benchmark dataset and analyze the results.")
 
 # ---------------------------------------------------------------------------
@@ -175,9 +178,20 @@ with col1:
 with col2:
     dataset_name = st.selectbox("Select Dataset", list(dataset_registry.keys()))
 
-# Dataset path
+# Dataset path — auto-detect common locations
+_common_paths = {
+    "RAVDESS": ["/workspace/data/RAVDESS", "/workspace/data/ravdess", "/data/RAVDESS"],
+    "ESD": ["/workspace/data/ESD", "/workspace/data/esd", "/data/ESD"],
+}
+_default_dir = ""
+for _candidate in _common_paths.get(dataset_name, []):
+    if Path(_candidate).is_dir():
+        _default_dir = _candidate
+        break
+
 data_dir = st.text_input(
     "Dataset directory path",
+    value=_default_dir,
     placeholder="/workspace/data/RAVDESS" if dataset_name == "RAVDESS" else "/workspace/data/ESD",
     help="Absolute path to the dataset root directory on this machine.",
 )
@@ -186,9 +200,26 @@ data_dir = st.text_input(
 if dataset_name == "ESD":
     esd_col1, esd_col2 = st.columns(2)
     with esd_col1:
-        esd_split = st.selectbox("Split", ["test", "evaluation", "train"], index=0)
+        esd_split = st.selectbox("Split", ["test", "evaluation", "train", "all"], index=0,
+                                  help="If dataset has no split folders, all files are loaded regardless.")
     with esd_col2:
         esd_language = st.selectbox("Language", ["english", "chinese", "all"], index=0)
+
+# Sample limit
+st.markdown("---")
+sample_col1, sample_col2 = st.columns(2)
+with sample_col1:
+    max_samples = st.number_input(
+        "Max samples (0 = all)",
+        min_value=0, max_value=100000, value=0, step=10,
+        help="Limit the number of samples to run. Useful for quick tests. 0 = use all samples.",
+    )
+with sample_col2:
+    stratified = st.checkbox(
+        "Evenly distributed across emotions",
+        value=True,
+        help="Sample equally from each emotion class. Ensures balanced evaluation.",
+    )
 
 # --- Run Benchmark ---
 if st.button("🚀 Run Benchmark", type="primary", disabled=not data_dir):
@@ -210,7 +241,36 @@ if st.button("🚀 Run Benchmark", type="primary", disabled=not data_dir):
         st.error("No samples found in the dataset. Check your directory path and structure.")
         st.stop()
 
-    st.info(f"Found **{len(dataset)}** samples across **{len(dataset.emotion_labels)}** emotions: {', '.join(dataset.emotion_labels)}")
+    # Subsample if requested
+    import random
+    all_samples = list(dataset)
+
+    if max_samples > 0 and max_samples < len(all_samples):
+        if stratified:
+            # Sample equally from each emotion
+            from collections import defaultdict
+            by_emotion = defaultdict(list)
+            for audio_path, label in all_samples:
+                by_emotion[label].append((audio_path, label))
+
+            n_emotions = len(by_emotion)
+            per_emotion = max(1, max_samples // n_emotions)
+            sampled = []
+            for label in sorted(by_emotion.keys()):
+                pool = by_emotion[label]
+                random.shuffle(pool)
+                sampled.extend(pool[:per_emotion])
+            random.shuffle(sampled)
+            all_samples = sampled
+        else:
+            random.shuffle(all_samples)
+            all_samples = all_samples[:max_samples]
+
+    st.info(
+        f"Found **{len(dataset)}** total samples across "
+        f"**{len(dataset.emotion_labels)}** emotions: {', '.join(dataset.emotion_labels)}"
+        + (f"  \n**Using {len(all_samples)} samples**" + (" (stratified)" if stratified else "") if max_samples > 0 else "")
+    )
 
     # Load model
     with st.spinner(f"Loading {model_name}..."):
@@ -222,8 +282,9 @@ if st.button("🚀 Run Benchmark", type="primary", disabled=not data_dir):
     all_results = []
     progress = st.progress(0, text="Running inference...")
     start_time = time.time()
+    total = len(all_samples)
 
-    for i, (audio_path, emotion_label) in enumerate(dataset):
+    for i, (audio_path, emotion_label) in enumerate(all_samples):
         try:
             result = model.predict(audio_path)
         except Exception as e:
@@ -236,7 +297,7 @@ if st.button("🚀 Run Benchmark", type="primary", disabled=not data_dir):
         if model.output_type == "probabilities":
             pred_labels.append(result["top_label"])
 
-        progress.progress((i + 1) / len(dataset), text=f"Running inference... {i + 1}/{len(dataset)}")
+        progress.progress((i + 1) / total, text=f"Running inference... {i + 1}/{total}")
 
     elapsed = time.time() - start_time
     progress.empty()

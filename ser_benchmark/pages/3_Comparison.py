@@ -21,8 +21,11 @@ import seaborn as sns
 import streamlit as st
 import matplotlib.pyplot as plt
 
+from ui_common import show_gpu_sidebar
+
 st.set_page_config(page_title="Comparison", page_icon="🔬", layout="wide")
-st.title("🔬 Baseline Subtraction & Comparison")
+show_gpu_sidebar()
+st.title("Baseline Subtraction & Comparison")
 st.markdown("""
 Compare two benchmark runs by subtracting their row-normalized confusion matrices.
 This compensates for the SER classifier's inherent inaccuracies.

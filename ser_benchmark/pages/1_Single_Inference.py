@@ -3,6 +3,7 @@
 import sys
 import io
 import json
+import os
 import tempfile
 from pathlib import Path
 
@@ -15,12 +16,55 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
 
+from ui_common import show_gpu_sidebar
+
 st.set_page_config(page_title="Single Inference", page_icon="🎙️", layout="wide")
-st.title("🎙️ Single Inference")
+show_gpu_sidebar()
+st.title("Single Inference")
 st.markdown("Upload an audio file **or record from your microphone** and see the raw output from any loaded model.")
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Audio normalization — converts ANY audio format to 16kHz mono WAV bytes
+# ---------------------------------------------------------------------------
+
+def normalize_audio_to_wav(raw_bytes: bytes, original_suffix: str = ".wav") -> bytes | None:
+    """Convert arbitrary audio bytes to 16kHz mono PCM WAV.
+
+    Handles MP3, WebM, OGG, FLAC, etc. via librosa (which uses ffmpeg).
+    Returns WAV bytes, or None on failure.
+    """
+    import soundfile as sf
+    import librosa
+
+    # Write raw bytes to temp file with original extension so librosa/ffmpeg
+    # can detect the codec
+    with tempfile.NamedTemporaryFile(delete=False, suffix=original_suffix) as tmp:
+        tmp.write(raw_bytes)
+        tmp_path = tmp.name
+
+    try:
+        signal, sr = librosa.load(tmp_path, sr=16000, mono=True)
+        import numpy as np
+        st.session_state["_audio_debug"] = {
+            "duration_s": len(signal) / sr,
+            "samples": len(signal),
+            "sr": sr,
+            "max_amplitude": float(np.abs(signal).max()),
+            "is_silence": float(np.abs(signal).max()) < 0.001,
+        }
+        wav_buf = io.BytesIO()
+        sf.write(wav_buf, signal, 16000, format="WAV", subtype="PCM_16")
+        return wav_buf.getvalue()
+    except Exception as e:
+        st.error(f"Failed to decode audio: {e}")
+        st.info("Make sure ffmpeg is installed (`apt install ffmpeg`).")
+        return None
+    finally:
+        os.unlink(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Display helpers
 # ---------------------------------------------------------------------------
 
 def display_probabilities(result: dict):
@@ -61,7 +105,6 @@ def display_dimensional(result: dict):
     cols = st.columns(3)
     for col, (dim_name, value) in zip(cols, dims.items()):
         with col:
-            # Color code: low=blue, mid=gray, high=red
             st.metric(label=dim_name.capitalize(), value=f"{value:.3f}")
             st.progress(min(max(value, 0.0), 1.0))
 
@@ -99,8 +142,8 @@ model_name = st.selectbox("Select Model", list(model_registry.keys()))
 
 tab_upload, tab_mic = st.tabs(["📁 Upload File", "🎤 Record from Mic"])
 
-audio_bytes = None
-audio_name = None
+raw_audio_bytes = None
+audio_suffix = ".wav"
 
 with tab_upload:
     uploaded_file = st.file_uploader(
@@ -109,70 +152,79 @@ with tab_upload:
         help="Supported formats: WAV, MP3, FLAC, OGG. Will be converted to 16kHz mono internally.",
     )
     if uploaded_file is not None:
-        audio_bytes = uploaded_file.getvalue()
-        audio_name = uploaded_file.name
+        raw_audio_bytes = uploaded_file.getvalue()
+        audio_suffix = Path(uploaded_file.name).suffix or ".wav"
 
 with tab_mic:
     recorded = st.audio_input("Click to record from your microphone")
     if recorded is not None:
-        # Browser records as WebM/OGG, not WAV. Convert to WAV via librosa/soundfile.
-        try:
-            import soundfile as sf
-            import librosa
-
-            raw_bytes = recorded.getvalue()
-            # Write browser audio to a temp file with original format
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp_raw:
-                tmp_raw.write(raw_bytes)
-                tmp_raw_path = tmp_raw.name
-
-            # Load with librosa (handles webm/ogg via ffmpeg/soundfile)
-            signal, sr = librosa.load(tmp_raw_path, sr=16000, mono=True)
-
-            # Write back as proper WAV
-            wav_buf = io.BytesIO()
-            sf.write(wav_buf, signal, 16000, format="WAV", subtype="PCM_16")
-            audio_bytes = wav_buf.getvalue()
-            audio_name = "recording.wav"
-
-            import os
-            os.unlink(tmp_raw_path)
-        except Exception as e:
-            st.error(f"Failed to convert mic recording: {e}")
-            st.info("Make sure ffmpeg is installed (`apt install ffmpeg`) for mic recording support.")
+        raw_audio_bytes = recorded.getvalue()
+        # st.audio_input returns WAV in Streamlit >=1.33
+        audio_suffix = ".wav"
 
 # ---------------------------------------------------------------------------
-# Inference
+# Normalize + Inference
 # ---------------------------------------------------------------------------
 
-if audio_bytes is not None:
-    # Audio playback
-    st.audio(audio_bytes)
-
-    # Save to temp file for model inference
-    suffix = Path(audio_name).suffix if audio_name else ".wav"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(audio_bytes)
-        tmp_path = tmp.name
-
-    # Run inference
-    if st.button("🔍 Run Inference", type="primary"):
-        model = model_registry[model_name]
-
-        with st.spinner(f"Loading {model_name}..." if not model.is_loaded else f"Running {model_name}..."):
-            model.ensure_loaded()
-            result = model.predict(tmp_path)
-
-        st.success("Inference complete!")
-
-        # Display based on output type
-        if model.output_type == "probabilities":
-            display_probabilities(result)
-        elif model.output_type == "dimensional":
-            display_dimensional(result)
+if raw_audio_bytes is not None:
+    # Debug info
+    with st.expander("🐛 Audio debug info"):
+        st.text(f"Raw bytes size: {len(raw_audio_bytes):,} bytes")
+        st.text(f"File suffix: {audio_suffix}")
+        st.text(f"First 16 bytes (hex): {raw_audio_bytes[:16].hex()}")
+        # Check if it starts with RIFF (WAV header)
+        if raw_audio_bytes[:4] == b'RIFF':
+            st.text("Format: WAV (RIFF header detected)")
+        elif raw_audio_bytes[:4] == b'\x1aE\xdf\xa3':
+            st.text("Format: WebM/Matroska header detected")
+        elif raw_audio_bytes[:4] == b'OggS':
+            st.text("Format: OGG header detected")
+        elif raw_audio_bytes[:3] == b'ID3' or raw_audio_bytes[:2] == b'\xff\xfb':
+            st.text("Format: MP3 header detected")
         else:
-            st.warning(f"Unknown output type: {model.output_type}")
+            st.text(f"Format: Unknown (header: {raw_audio_bytes[:4]})")
 
-        # Raw JSON output
-        with st.expander("🔧 Raw model output (JSON)"):
-            st.json(result)
+    # Normalize ALL audio to 16kHz mono WAV — this fixes MP3, WebM, OGG, etc.
+    wav_bytes = normalize_audio_to_wav(raw_audio_bytes, audio_suffix)
+
+    if wav_bytes is not None:
+        # Show conversion debug
+        debug = st.session_state.get("_audio_debug", {})
+        if debug:
+            with st.expander("🐛 Conversion debug info"):
+                st.text(f"Duration: {debug.get('duration_s', 0):.2f}s")
+                st.text(f"Samples: {debug.get('samples', 0)} @ {debug.get('sr', 0)} Hz")
+                st.text(f"Max amplitude: {debug.get('max_amplitude', 0):.6f}")
+                if debug.get("is_silence"):
+                    st.warning("⚠️ Audio appears to be silence (max amplitude < 0.001)")
+                st.text(f"Output WAV size: {len(wav_bytes):,} bytes")
+
+        # Audio playback (now guaranteed to be valid WAV)
+        st.audio(wav_bytes, format="audio/wav")
+
+        # Save WAV to temp file for model inference
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+            tmp.write(wav_bytes)
+            tmp_path = tmp.name
+
+        # Run inference
+        if st.button("🔍 Run Inference", type="primary"):
+            model = model_registry[model_name]
+
+            with st.spinner(f"Loading {model_name}..." if not model.is_loaded else f"Running {model_name}..."):
+                model.ensure_loaded()
+                result = model.predict(tmp_path)
+
+            st.success("Inference complete!")
+
+            # Display based on output type
+            if model.output_type == "probabilities":
+                display_probabilities(result)
+            elif model.output_type == "dimensional":
+                display_dimensional(result)
+            else:
+                st.warning(f"Unknown output type: {model.output_type}")
+
+            # Raw JSON output
+            with st.expander("🔧 Raw model output (JSON)"):
+                st.json(result)

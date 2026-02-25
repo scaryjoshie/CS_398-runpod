@@ -1,0 +1,219 @@
+{
+  "model_name": "emotion2vec+ Large",
+  "dataset_name": "RAVDESS",
+  "output_type": "probabilities",
+  "timestamp": "20260225_081015",
+  "row_labels": [
+    "neutral",
+    "happy",
+    "sad",
+    "angry",
+    "fearful",
+    "disgust",
+    "surprised",
+    "calm"
+  ],
+  "col_labels": [
+    "neutral",
+    "happy",
+    "sad",
+    "angry",
+    "fearful",
+    "disgusted",
+    "surprised",
+    "other",
+    "unknown"
+  ],
+  "diagonal_pairs": [
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      2,
+      2
+    ],
+    [
+      3,
+      3
+    ],
+    [
+      4,
+      4
+    ],
+    [
+      5,
+      5
+    ],
+    [
+      6,
+      6
+    ]
+  ],
+  "matrix": [
+    [
+      12,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      12,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      12,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      12,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      0,
+      9,
+      1,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      11,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      12,
+      0,
+      0
+    ],
+    [
+      12,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  ],
+  "metrics": {
+    "overall_accuracy": 0.8333,
+    "total_samples": 96,
+    "per_class": [
+      {
+        "true_label": "neutral",
+        "pred_label": "neutral",
+        "true_positives": 12,
+        "support": 12,
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1": 0.6667
+      },
+      {
+        "true_label": "happy",
+        "pred_label": "happy",
+        "true_positives": 12,
+        "support": 12,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "true_label": "sad",
+        "pred_label": "sad",
+        "true_positives": 12,
+        "support": 12,
+        "precision": 0.9231,
+        "recall": 1.0,
+        "f1": 0.96
+      },
+      {
+        "true_label": "angry",
+        "pred_label": "angry",
+        "true_positives": 12,
+        "support": 12,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "true_label": "fearful",
+        "pred_label": "fearful",
+        "true_positives": 9,
+        "support": 12,
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.8571
+      },
+      {
+        "true_label": "disgust",
+        "pred_label": "disgusted",
+        "true_positives": 11,
+        "support": 12,
+        "precision": 0.9167,
+        "recall": 0.9167,
+        "f1": 0.9167
+      },
+      {
+        "true_label": "surprised",
+        "pred_label": "surprised",
+        "true_positives": 12,
+        "support": 12,
+        "precision": 0.8571,
+        "recall": 1.0,
+        "f1": 0.9231
+      }
+    ],
+    "macro_precision": 0.8853,
+    "macro_recall": 0.9524,
+    "macro_f1": 0.9034
+  }
+}

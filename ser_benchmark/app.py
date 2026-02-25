@@ -23,6 +23,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from models import MODEL_REGISTRY
 from datasets import DATASET_REGISTRY
+from ui_common import show_gpu_sidebar
 
 # ---------------------------------------------------------------------------
 # Session state initialization
@@ -85,25 +86,5 @@ st.markdown("""
 | ESD | [GitHub](https://github.com/HLTSingapore/Emotional-Speech-Data) / [Kaggle](https://www.kaggle.com/datasets/nguyenthanhlim/emotional-speech-dataset-esd) | 5 emotions, 20 speakers |
 """)
 
-# GPU info — cached so torch import only happens once, not every rerun
-@st.cache_resource
-def _get_gpu_info() -> tuple[str, str | None, float | None]:
-    """Returns (status, gpu_name, gpu_mem_gb). Cached across reruns."""
-    try:
-        import torch
-        if torch.cuda.is_available():
-            name = torch.cuda.get_device_name(0)
-            mem = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-            return "ok", name, mem
-        else:
-            return "no_gpu", None, None
-    except ImportError:
-        return "no_torch", None, None
-
-_gpu_status, _gpu_name, _gpu_mem = _get_gpu_info()
-if _gpu_status == "ok":
-    st.sidebar.success(f"🖥️ GPU: {_gpu_name} ({_gpu_mem:.1f} GB)")
-elif _gpu_status == "no_gpu":
-    st.sidebar.warning("⚠️ No GPU detected — inference will be slow")
-else:
-    st.sidebar.warning("⚠️ PyTorch not installed")
+# GPU info in sidebar (shared across all pages via ui_common)
+show_gpu_sidebar()

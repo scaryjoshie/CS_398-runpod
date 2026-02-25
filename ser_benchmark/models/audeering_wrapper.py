@@ -60,12 +60,20 @@ def _build_model_classes():
     class EmotionModel(Wav2Vec2PreTrainedModel):
         """Wav2Vec2-based dimensional emotion model."""
 
+        # transformers 5.x expects these class-level attributes for weight tying
+        _tied_weights_keys = []
+        all_tied_weights_keys = set()
+
         def __init__(self, config):
             super().__init__(config)
+            # Ensure instance-level attribute exists (some transformers versions
+            # only set it via __init_subclass__ or post_init)
+            if not hasattr(self, "all_tied_weights_keys"):
+                self.all_tied_weights_keys = set()
             self.config = config
             self.wav2vec2 = Wav2Vec2Model(config)
             self.classifier = RegressionHead(config)
-            self.init_weights()
+            self.post_init()
 
         def forward(self, input_values):
             outputs = self.wav2vec2(input_values)
@@ -104,10 +112,21 @@ class AudeeringDimWrapper(BaseModelWrapper):
         return DIMENSION_NAMES
 
     def load(self) -> None:
+        import sys as _sys
+        import types
         import torch
         from transformers import Wav2Vec2Processor
 
         EmotionModel = _build_model_classes()
+
+        # transformers 5.x does sys.modules[cls.__module__] during __init__.
+        # Since this module is loaded via sys.path manipulation, it may not
+        # be registered. Create a stub so the lookup doesn't KeyError.
+        # (The stub has no __file__, so transformers returns False — which is
+        # correct: this isn't an MoE model.)
+        _mod_name = EmotionModel.__module__
+        if _mod_name not in _sys.modules:
+            _sys.modules[_mod_name] = types.ModuleType(_mod_name)
 
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
         self._processor = Wav2Vec2Processor.from_pretrained(MODEL_ID)

@@ -1,0 +1,157 @@
+{
+  "model_name": "emotion2vec+ Large",
+  "dataset_name": "ESD",
+  "output_type": "probabilities",
+  "timestamp": "20260225_081048",
+  "row_labels": [
+    "angry",
+    "happy",
+    "neutral",
+    "sad",
+    "surprise"
+  ],
+  "col_labels": [
+    "angry",
+    "happy",
+    "neutral",
+    "sad",
+    "surprised",
+    "disgusted",
+    "fearful",
+    "other",
+    "unknown"
+  ],
+  "diagonal_pairs": [
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      2,
+      2
+    ],
+    [
+      3,
+      3
+    ],
+    [
+      4,
+      4
+    ]
+  ],
+  "matrix": [
+    [
+      19,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      19,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      19,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      0,
+      1,
+      18,
+      0,
+      0,
+      0,
+      0
+    ]
+  ],
+  "metrics": {
+    "overall_accuracy": 0.95,
+    "total_samples": 100,
+    "per_class": [
+      {
+        "true_label": "angry",
+        "pred_label": "angry",
+        "true_positives": 19,
+        "support": 20,
+        "precision": 1.0,
+        "recall": 0.95,
+        "f1": 0.9744
+      },
+      {
+        "true_label": "happy",
+        "pred_label": "happy",
+        "true_positives": 19,
+        "support": 20,
+        "precision": 0.9048,
+        "recall": 0.95,
+        "f1": 0.9268
+      },
+      {
+        "true_label": "neutral",
+        "pred_label": "neutral",
+        "true_positives": 19,
+        "support": 20,
+        "precision": 0.95,
+        "recall": 0.95,
+        "f1": 0.95
+      },
+      {
+        "true_label": "sad",
+        "pred_label": "sad",
+        "true_positives": 20,
+        "support": 20,
+        "precision": 0.9091,
+        "recall": 1.0,
+        "f1": 0.9524
+      },
+      {
+        "true_label": "surprise",
+        "pred_label": "surprised",
+        "true_positives": 18,
+        "support": 20,
+        "precision": 1.0,
+        "recall": 0.9,
+        "f1": 0.9474
+      }
+    ],
+    "macro_precision": 0.9528,
+    "macro_recall": 0.95,
+    "macro_f1": 0.9502
+  }
+}
