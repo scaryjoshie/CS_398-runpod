@@ -17,4 +17,6 @@ dependencies = [
     "seaborn",
     "matplotlib",
     "scikit-learn",
+    "torchaudio>=2.10.0",
+    "gdown>=5.2.1",
 ]
