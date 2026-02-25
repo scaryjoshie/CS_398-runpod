@@ -1,0 +1,20 @@
+[project]
+name = "benchmark"
+version = "0.1.0"
+description = "SER Benchmarking Suite for Speech Emotion Recognition models"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit>=1.30",
+    "torch>=2.0",
+    "transformers>=4.30",
+    "funasr",
+    "modelscope",
+    "soundfile",
+    "librosa",
+    "numpy",
+    "pandas",
+    "seaborn",
+    "matplotlib",
+    "scikit-learn",
+]

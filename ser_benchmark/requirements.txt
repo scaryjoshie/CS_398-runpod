@@ -1,0 +1,13 @@
+streamlit>=1.30
+torch>=2.0
+torchaudio>=2.0
+transformers>=4.30
+funasr>=1.0
+modelscope
+soundfile
+librosa
+numpy
+pandas
+seaborn
+matplotlib
+scikit-learn
